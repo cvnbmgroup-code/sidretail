@@ -130,7 +130,7 @@
         let currentPage = 1;
         const rowsPerPage = 50;
 
-        // Helper untuk memanggil API dengan Timestamp TRX ID Unik
+        // Helper untuk memanggil API
         async function queryApi(sqlQuery) {
             const uniqueId = Date.now() + Math.floor(Math.random() * 1000);
             const trxId = "TRX" + uniqueId;
@@ -150,7 +150,7 @@
             }
         }
 
-        // 1. Ambil Data Barang & Stok (SELECT kode, nama, jumlah_barang, harga_toko)
+        // 1. Ambil Data Barang & Stok (Diset menggunakan kolom `jumlah`)
         async function loadDataBarang() {
             const tbody = document.getElementById("tableBody");
             tbody.innerHTML = `
@@ -161,8 +161,8 @@
                     </td>
                 </tr>`;
 
-            // Query disesuaikan mengambil jumlah_barang (stok)
-            const res = await queryApi("select kode,nama,jumlah_barang,harga_toko from barang");
+            // QUERY MENGGUNAKAN NAMA KOLOM `jumlah`
+            const res = await queryApi("select kode,nama,jumlah,harga_toko from barang");
 
             if (res && res.status === "success") {
                 let rawData = res.data || [];
@@ -176,7 +176,7 @@
             }
         }
 
-        // 2. Render Data Tabel & Paginasi
+        // 2. Render Data Tabel & Paginasi (50 per Halaman)
         function renderTable() {
             const tbody = document.getElementById("tableBody");
             if (!filteredData || filteredData.length === 0) {
@@ -186,7 +186,6 @@
                 return;
             }
 
-            // Hitung Paginasi
             const startIndex = (currentPage - 1) * rowsPerPage;
             const endIndex = Math.min(startIndex + rowsPerPage, filteredData.length);
             const pageData = filteredData.slice(startIndex, endIndex);
@@ -194,11 +193,10 @@
             tbody.innerHTML = pageData.map(item => {
                 const kode = item.kode || item.kode_barang || '-';
                 const nama = item.nama || item.nama_barang || '-';
-                const stok = Number(item.jumlah_barang || item.stok || 0);
+                const stok = Number(item.jumlah !== undefined ? item.jumlah : (item.stok || item.jumlah_barang || 0));
                 const rawHarga = item.harga_toko || item.harga || 0;
                 const cleanHarga = Math.round(parseFloat(rawHarga) || 0);
 
-                // Badge warna stok
                 const stokBadge = stok <= 5 
                     ? `<span class="bg-red-100 text-red-700 px-2.5 py-1 rounded-full text-xs font-semibold">${stok}</span>` 
                     : `<span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-semibold">${stok}</span>`;
@@ -226,7 +224,7 @@
             updatePaginationControls(startIndex, endIndex);
         }
 
-        // Render Tombol Navigasi Paginasi
+        // Render Tombol Paginasi
         function updatePaginationControls(startIndex, endIndex) {
             const totalPages = Math.ceil(filteredData.length / rowsPerPage);
             document.getElementById("pageInfo").innerText = `Menampilkan ${startIndex + 1} - ${endIndex} dari ${filteredData.length} data`;
@@ -251,7 +249,7 @@
             }
         }
 
-        // 3. Simpan Data (INSERT / UPDATE termasuk jumlah_barang/stok)
+        // 3. Simpan Data (Menggunakan kolom `jumlah` untuk stok)
         async function saveBarang(event) {
             event.preventDefault();
             
@@ -263,9 +261,9 @@
 
             let sqlQuery = "";
             if (isEdit) {
-                sqlQuery = `update barang set nama="${nama}", jumlah_barang="${stok}", harga_toko="${harga}" where kode="${kode}"`;
+                sqlQuery = `update barang set nama="${nama}", jumlah="${stok}", harga_toko="${harga}" where kode="${kode}"`;
             } else {
-                sqlQuery = `insert into barang (kode, nama, jumlah_barang, harga_toko) values ("${kode}", "${nama}", "${stok}", "${harga}")`;
+                sqlQuery = `insert into barang (kode, nama, jumlah, harga_toko) values ("${kode}", "${nama}", "${stok}", "${harga}")`;
             }
 
             const res = await queryApi(sqlQuery);
