@@ -110,7 +110,7 @@
         
         let allData = [];
 
-        // Helper untuk memanggil API
+        // Helper untuk memanggil API dengan Timestamp TRX ID Unik
         async function queryApi(sqlQuery) {
             const uniqueId = Date.now() + Math.floor(Math.random() * 1000);
             const trxId = "TRX" + uniqueId;
@@ -136,7 +136,7 @@
             }
         }
 
-        // 1. Ambil & Tampilkan Data Barang (SELECT menggunakan kolom: kode, nama, harga_toko)
+        // 1. Ambil & Tampilkan Data Barang
         async function loadDataBarang() {
             const tbody = document.getElementById("tableBody");
             tbody.innerHTML = `
@@ -147,7 +147,6 @@
                     </td>
                 </tr>`;
 
-            // QUERY DISESUAIKAN DENGAN STRUKTUR SID RETAIL: kode, nama, harga_toko
             const res = await queryApi("select kode,nama,harga_toko from barang");
 
             if (res && res.status === "success") {
@@ -175,9 +174,10 @@
             tbody.innerHTML = data.map(item => {
                 const kode = item.kode || item.kode_barang || '-';
                 const nama = item.nama || item.nama_barang || '-';
-                const harga = item.harga_toko || item.harga || '0';
+                const rawHarga = item.harga_toko || item.harga || 0;
                 
-                const cleanHarga = Number(String(harga).replace(/[^0-9]/g, '')) || 0;
+                // Perbaikan format harga: konversi ke float & pembulatan presisi agar format desimal tidak error
+                const cleanHarga = Math.round(parseFloat(rawHarga) || 0);
 
                 return `
                     <tr class="hover:bg-slate-50 transition">
@@ -199,7 +199,7 @@
             }).join('');
         }
 
-        // 2. Simpan Data (INSERT / UPDATE disesuaikan nama kolom: kode, nama)
+        // 2. Simpan Data (INSERT / UPDATE)
         async function saveBarang(event) {
             event.preventDefault();
             
@@ -226,7 +226,7 @@
             }
         }
 
-        // 3. Hapus Data Barang (DELETE menggunakan kolom: kode)
+        // 3. Hapus Data Barang (DELETE)
         async function hapusBarang(kode) {
             if (!confirm(`Apakah Anda yakin ingin menghapus barang dengan kode: ${kode}?`)) return;
 
@@ -266,7 +266,7 @@
                 kodeInput.readOnly = true; 
                 kodeInput.classList.add("bg-slate-100", "cursor-not-allowed");
                 document.getElementById("namaBarang").value = nama;
-                document.getElementById("hargaToko").value = String(harga).replace(/[^0-9]/g, '');
+                document.getElementById("hargaToko").value = harga;
             } else {
                 modalTitle.innerText = "Tambah Barang Baru";
                 document.getElementById("isEdit").value = "false";
