@@ -69,7 +69,7 @@
                     Menampilkan 0 data
                 </div>
                 <div class="flex items-center gap-2" id="paginationControls">
-                    <!-- Navigasi Halaman -->
+                    <!-- Navigasi Halaman Dibuat Dinamis -->
                 </div>
             </div>
         </div>
@@ -129,8 +129,9 @@
         let filteredData = [];
         let currentPage = 1;
         const rowsPerPage = 50;
+        let detectedStokColumn = "stok_toko"; // Kolom default SID Retail
 
-        // Helper untuk memanggil API dengan TRX ID unik
+        // Helper untuk memanggil API
         async function queryApi(sqlQuery) {
             const uniqueId = Date.now() + Math.floor(Math.random() * 1000);
             const trxId = "TRX" + uniqueId;
@@ -150,7 +151,7 @@
             }
         }
 
-        // 1. Ambil Data Barang & Stok menggunakan kolom `stok_toko`
+        // 1. Ambil Data Barang & Deteksi Kolom Stok
         async function loadDataBarang() {
             const tbody = document.getElementById("tableBody");
             tbody.innerHTML = `
@@ -161,12 +162,16 @@
                     </td>
                 </tr>`;
 
-            // Query menggunakan nama kolom resmi SID Retail: stok_toko
-            let res = await queryApi("select kode,nama,stok_toko,harga_toko from barang");
+            // Daftar kemungkinan nama kolom stok di SID Retail
+            const possibleStokCols = ["stok_toko", "stok_gudang", "stok"];
+            let res = null;
 
-            // Fallback jika `stok_toko` tidak ditemukan (misal menggunakan stok_gudang)
-            if (res && res.status === "error" && res.result.includes("Unknown column")) {
-                res = await queryApi("select kode,nama,stok_gudang,harga_toko from barang");
+            for (const col of possibleStokCols) {
+                res = await queryApi(`select kode,nama,${col},harga_toko from barang`);
+                if (res && res.status === "success") {
+                    detectedStokColumn = col;
+                    break;
+                }
             }
 
             if (res && res.status === "success") {
@@ -181,7 +186,7 @@
             }
         }
 
-        // 2. Render Data Tabel & Paginasi (50 Data/Halaman)
+        // 2. Render Data Tabel & Paginasi (50 per Halaman)
         function renderTable() {
             const tbody = document.getElementById("tableBody");
             if (!filteredData || filteredData.length === 0) {
@@ -198,11 +203,7 @@
             tbody.innerHTML = pageData.map(item => {
                 const kode = item.kode || item.kode_barang || '-';
                 const nama = item.nama || item.nama_barang || '-';
-                
-                // Mendapatkan angka stok dari field yang tersedia
-                const rawStok = item.stok_toko !== undefined ? item.stok_toko : (item.stok_gudang !== undefined ? item.stok_gudang : 0);
-                const stok = Number(rawStok || 0);
-
+                const stok = Number(item[detectedStokColumn] || 0);
                 const rawHarga = item.harga_toko || item.harga || 0;
                 const cleanHarga = Math.round(parseFloat(rawHarga) || 0);
 
@@ -258,7 +259,7 @@
             }
         }
 
-        // 3. Simpan Data (Memperbarui nama, stok_toko, dan harga_toko)
+        // 3. Simpan Data Menggunakan Kolom Terdeteksi
         async function saveBarang(event) {
             event.preventDefault();
             
@@ -270,22 +271,12 @@
 
             let sqlQuery = "";
             if (isEdit) {
-                sqlQuery = `update barang set nama="${nama}", stok_toko="${stok}", harga_toko="${harga}" where kode="${kode}"`;
+                sqlQuery = `update barang set nama="${nama}", ${detectedStokColumn}="${stok}", harga_toko="${harga}" where kode="${kode}"`;
             } else {
-                sqlQuery = `insert into barang (kode, nama, stok_toko, harga_toko) values ("${kode}", "${nama}", "${stok}", "${harga}")`;
+                sqlQuery = `insert into barang (kode, nama, ${detectedStokColumn}, harga_toko) values ("${kode}", "${nama}", "${stok}", "${harga}")`;
             }
 
-            let res = await queryApi(sqlQuery);
-
-            // Fallback ke kolom stok_gudang jika stok_toko gagal
-            if (res && res.status === "error" && res.result.includes("Unknown column")) {
-                if (isEdit) {
-                    sqlQuery = `update barang set nama="${nama}", stok_gudang="${stok}", harga_toko="${harga}" where kode="${kode}"`;
-                } else {
-                    sqlQuery = `insert into barang (kode, nama, stok_gudang, harga_toko) values ("${kode}", "${nama}", "${stok}", "${harga}")`;
-                }
-                res = await queryApi(sqlQuery);
-            }
+            const res = await queryApi(sqlQuery);
 
             if (res && res.status === "success") {
                 showAlert(`Barang & Stok berhasil ${isEdit ? 'diperbarui' : 'ditambahkan'}!`, "success");
@@ -310,7 +301,7 @@
             }
         }
 
-        // Filter tabel pencarian lokal
+        // Filter pencarian
         function filterTable() {
             const query = document.getElementById("searchInput").value.toLowerCase();
             filteredData = allData.filter(item => {
@@ -322,7 +313,7 @@
             renderTable();
         }
 
-        // Kontrol Modal
+        // Modal Controls
         function openModal(mode, kode = '', nama = '', stok = 0, harga = '') {
             const modal = document.getElementById("itemModal");
             const modalTitle = document.getElementById("modalTitle");
@@ -356,7 +347,7 @@
             modal.classList.remove("flex");
         }
 
-        // Notifikasi Alert
+        // Alert Notifikasi
         function showAlert(message, type = "success") {
             const alertBox = document.getElementById("alertBox");
             alertBox.innerText = message;
