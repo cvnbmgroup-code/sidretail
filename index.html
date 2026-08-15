@@ -112,18 +112,24 @@
         
         let allData = [];
 
-        // Helper untuk memanggil API
+        // Helper untuk memanggil API (Perbaikan: Menambahkan CORS Proxy)
         async function queryApi(sqlQuery) {
             const trxId = "TRX" + Math.floor(1000 + Math.random() * 9000);
-            const url = `${BASE_URL}/${trxId}/${encodeURIComponent(sqlQuery)}`;
+            const targetUrl = `${BASE_URL}/${trxId}/${encodeURIComponent(sqlQuery)}`;
+            
+            // Menggunakan CORS Proxy gratis agar tidak diblokir browser saat di-host di GitHub Pages / Server luar
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
             
             try {
-                const response = await fetch(url);
+                const response = await fetch(proxyUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP Error status: ${response.status}`);
+                }
                 const data = await response.json();
                 return data;
             } catch (error) {
                 console.error("API Request Failed:", error);
-                return { status: "error", result: "Gagal terhubung ke server API." };
+                return { status: "error", result: "Gagal terhubung ke server API atau masalah CORS." };
             }
         }
 
@@ -140,12 +146,18 @@
 
             const res = await queryApi("select kode_barang,nama_barang,harga_toko from barang");
 
-            if (res.status === "success") {
-                allData = res.data || [];
+            if (res && res.status === "success") {
+                // Penanganan jika format data dari API berbentuk object atau array
+                let rawData = res.data || [];
+                if (typeof rawData === 'object' && !Array.isArray(rawData)) {
+                    allData = Object.values(rawData);
+                } else {
+                    allData = rawData;
+                }
                 renderTable(allData);
             } else {
                 showAlert(res.result || "Gagal mengambil data dari database", "error");
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-red-500">Gagal memuat data.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-red-500">Gagal memuat data. Periksa koneksi atau CORS.</td></tr>`;
             }
         }
 
@@ -157,23 +169,32 @@
                 return;
             }
 
-            tbody.innerHTML = data.map(item => `
-                <tr class="hover:bg-slate-50 transition">
-                    <td class="py-3 px-4 font-mono text-indigo-600 font-semibold">${item.kode_barang || '-'}</td>
-                    <td class="py-3 px-4 font-medium">${item.nama_barang || '-'}</td>
-                    <td class="py-3 px-4">Rp ${Number(String(item.harga_toko).replace(/[^0-9]/g, '')).toLocaleString('id-ID') || '0'}</td>
-                    <td class="py-3 px-4 text-center">
-                        <div class="flex justify-center gap-2">
-                            <button onclick="openModal('edit', '${item.kode_barang}', '${item.nama_barang}', '${item.harga_toko}')" class="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-md font-medium text-xs transition flex items-center gap-1">
-                                <i class="fa-solid fa-pen-to-square"></i> Edit
-                            </button>
-                            <button onclick="hapusBarang('${item.kode_barang}')" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-md font-medium text-xs transition flex items-center gap-1">
-                                <i class="fa-solid fa-trash"></i> Hapus
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = data.map(item => {
+                const kode = item.kode_barang || item.kode || '-';
+                const nama = item.nama_barang || item.nama || '-';
+                const harga = item.harga_toko || item.harga || '0';
+                
+                // Pembersihan format angka harga
+                const cleanHarga = Number(String(harga).replace(/[^0-9]/g, '')) || 0;
+
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="py-3 px-4 font-mono text-indigo-600 font-semibold">${kode}</td>
+                        <td class="py-3 px-4 font-medium">${nama}</td>
+                        <td class="py-3 px-4">Rp ${cleanHarga.toLocaleString('id-ID')}</td>
+                        <td class="py-3 px-4 text-center">
+                            <div class="flex justify-center gap-2">
+                                <button onclick="openModal('edit', '${kode}', '${nama}', '${cleanHarga}')" class="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-md font-medium text-xs transition flex items-center gap-1">
+                                    <i class="fa-solid fa-pen-to-square"></i> Edit
+                                </button>
+                                <button onclick="hapusBarang('${kode}')" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-md font-medium text-xs transition flex items-center gap-1">
+                                    <i class="fa-solid fa-trash"></i> Hapus
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         // 2. Simpan Data (INSERT / UPDATE)
@@ -194,7 +215,7 @@
 
             const res = await queryApi(sqlQuery);
 
-            if (res.status === "success") {
+            if (res && res.status === "success") {
                 showAlert(`Barang berhasil ${isEdit ? 'diperbarui' : 'ditambahkan'}!`, "success");
                 closeModal();
                 loadDataBarang();
@@ -209,7 +230,7 @@
 
             const res = await queryApi(`delete from barang where kode_barang="${kode}"`);
 
-            if (res.status === "success") {
+            if (res && res.status === "success") {
                 showAlert("Barang berhasil dihapus!", "success");
                 loadDataBarang();
             } else {
@@ -220,10 +241,11 @@
         // Filter tabel lokal
         function filterTable() {
             const query = document.getElementById("searchInput").value.toLowerCase();
-            const filtered = allData.filter(item => 
-                (item.kode_barang && item.kode_barang.toLowerCase().includes(query)) ||
-                (item.nama_barang && item.nama_barang.toLowerCase().includes(query))
-            );
+            const filtered = allData.filter(item => {
+                const kode = (item.kode_barang || item.kode || '').toLowerCase();
+                const nama = (item.nama_barang || item.nama || '').toLowerCase();
+                return kode.includes(query) || nama.includes(query);
+            });
             renderTable(filtered);
         }
 
@@ -239,7 +261,7 @@
                 modalTitle.innerText = "Edit Data Barang";
                 document.getElementById("isEdit").value = "true";
                 kodeInput.value = kode;
-                kodeInput.readOnly = true; // Kode barang tidak boleh diubah saat edit
+                kodeInput.readOnly = true; 
                 kodeInput.classList.add("bg-slate-100", "cursor-not-allowed");
                 document.getElementById("namaBarang").value = nama;
                 document.getElementById("hargaToko").value = String(harga).replace(/[^0-9]/g, '');
