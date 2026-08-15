@@ -112,12 +112,15 @@
         
         let allData = [];
 
-        // Helper untuk memanggil API (Perbaikan: Menambahkan CORS Proxy)
+        // Helper untuk memanggil API
         async function queryApi(sqlQuery) {
-            const trxId = "TRX" + Math.floor(1000 + Math.random() * 9000);
+            // PERBAIKAN: Menggunakan Date.now() agar kode_trx dijamin 100% unik setiap kali dipanggil
+            const uniqueId = Date.now() + Math.floor(Math.random() * 1000);
+            const trxId = "TRX" + uniqueId;
+            
             const targetUrl = `${BASE_URL}/${trxId}/${encodeURIComponent(sqlQuery)}`;
             
-            // Menggunakan CORS Proxy gratis agar tidak diblokir browser saat di-host di GitHub Pages / Server luar
+            // Melewatkan request melalui CORS Proxy agar tidak terblokir di GitHub Pages
             const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
             
             try {
@@ -126,10 +129,16 @@
                     throw new Error(`HTTP Error status: ${response.status}`);
                 }
                 const data = await response.json();
+
+                // Log jika server SID Retail memberikan pesan error
+                if (data.status === "error") {
+                    console.error("Respon Error dari API SID Retail:", data.result);
+                }
+
                 return data;
             } catch (error) {
                 console.error("API Request Failed:", error);
-                return { status: "error", result: "Gagal terhubung ke server API atau masalah CORS." };
+                return { status: "error", result: "Gagal terhubung ke server API." };
             }
         }
 
@@ -147,7 +156,6 @@
             const res = await queryApi("select kode_barang,nama_barang,harga_toko from barang");
 
             if (res && res.status === "success") {
-                // Penanganan jika format data dari API berbentuk object atau array
                 let rawData = res.data || [];
                 if (typeof rawData === 'object' && !Array.isArray(rawData)) {
                     allData = Object.values(rawData);
@@ -157,7 +165,7 @@
                 renderTable(allData);
             } else {
                 showAlert(res.result || "Gagal mengambil data dari database", "error");
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-red-500">Gagal memuat data. Periksa koneksi atau CORS.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-red-500">Gagal memuat data. ${res.result || ''}</td></tr>`;
             }
         }
 
@@ -174,7 +182,6 @@
                 const nama = item.nama_barang || item.nama || '-';
                 const harga = item.harga_toko || item.harga || '0';
                 
-                // Pembersihan format angka harga
                 const cleanHarga = Number(String(harga).replace(/[^0-9]/g, '')) || 0;
 
                 return `
