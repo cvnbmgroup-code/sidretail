@@ -52,7 +52,6 @@
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="divide-y divide-slate-100 text-slate-700 text-sm">
-                        <!-- Data dimasukkan secara dinamis melalui JavaScript -->
                         <tr>
                             <td colspan="4" class="text-center py-8 text-slate-400">
                                 <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
@@ -106,7 +105,6 @@
     </div>
 
     <script>
-        // Konfigurasi API SID Retail
         const API_KEY = "2d8cd73b32a98b101b92772f81d3b0d81";
         const BASE_URL = `https://sidretail.id/api/${API_KEY}`;
         
@@ -114,13 +112,10 @@
 
         // Helper untuk memanggil API
         async function queryApi(sqlQuery) {
-            // PERBAIKAN: Menggunakan Date.now() agar kode_trx dijamin 100% unik setiap kali dipanggil
             const uniqueId = Date.now() + Math.floor(Math.random() * 1000);
             const trxId = "TRX" + uniqueId;
             
             const targetUrl = `${BASE_URL}/${trxId}/${encodeURIComponent(sqlQuery)}`;
-            
-            // Melewatkan request melalui CORS Proxy agar tidak terblokir di GitHub Pages
             const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
             
             try {
@@ -130,7 +125,6 @@
                 }
                 const data = await response.json();
 
-                // Log jika server SID Retail memberikan pesan error
                 if (data.status === "error") {
                     console.error("Respon Error dari API SID Retail:", data.result);
                 }
@@ -142,7 +136,7 @@
             }
         }
 
-        // 1. Ambil & Tampilkan Data Barang (SELECT)
+        // 1. Ambil & Tampilkan Data Barang (SELECT menggunakan kolom: kode, nama, harga_toko)
         async function loadDataBarang() {
             const tbody = document.getElementById("tableBody");
             tbody.innerHTML = `
@@ -153,7 +147,8 @@
                     </td>
                 </tr>`;
 
-            const res = await queryApi("select kode_barang,nama_barang,harga_toko from barang");
+            // QUERY DISESUAIKAN DENGAN STRUKTUR SID RETAIL: kode, nama, harga_toko
+            const res = await queryApi("select kode,nama,harga_toko from barang");
 
             if (res && res.status === "success") {
                 let rawData = res.data || [];
@@ -165,7 +160,7 @@
                 renderTable(allData);
             } else {
                 showAlert(res.result || "Gagal mengambil data dari database", "error");
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-red-500">Gagal memuat data. ${res.result || ''}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-red-500">Gagal memuat data: ${res.result || ''}</td></tr>`;
             }
         }
 
@@ -178,8 +173,8 @@
             }
 
             tbody.innerHTML = data.map(item => {
-                const kode = item.kode_barang || item.kode || '-';
-                const nama = item.nama_barang || item.nama || '-';
+                const kode = item.kode || item.kode_barang || '-';
+                const nama = item.nama || item.nama_barang || '-';
                 const harga = item.harga_toko || item.harga || '0';
                 
                 const cleanHarga = Number(String(harga).replace(/[^0-9]/g, '')) || 0;
@@ -204,7 +199,7 @@
             }).join('');
         }
 
-        // 2. Simpan Data (INSERT / UPDATE)
+        // 2. Simpan Data (INSERT / UPDATE disesuaikan nama kolom: kode, nama)
         async function saveBarang(event) {
             event.preventDefault();
             
@@ -215,9 +210,9 @@
 
             let sqlQuery = "";
             if (isEdit) {
-                sqlQuery = `update barang set nama_barang="${nama}", harga_toko="${harga}" where kode_barang="${kode}"`;
+                sqlQuery = `update barang set nama="${nama}", harga_toko="${harga}" where kode="${kode}"`;
             } else {
-                sqlQuery = `insert into barang (kode_barang, nama_barang, harga_toko) values ("${kode}", "${nama}", "${harga}")`;
+                sqlQuery = `insert into barang (kode, nama, harga_toko) values ("${kode}", "${nama}", "${harga}")`;
             }
 
             const res = await queryApi(sqlQuery);
@@ -231,11 +226,11 @@
             }
         }
 
-        // 3. Hapus Data Barang (DELETE)
+        // 3. Hapus Data Barang (DELETE menggunakan kolom: kode)
         async function hapusBarang(kode) {
             if (!confirm(`Apakah Anda yakin ingin menghapus barang dengan kode: ${kode}?`)) return;
 
-            const res = await queryApi(`delete from barang where kode_barang="${kode}"`);
+            const res = await queryApi(`delete from barang where kode="${kode}"`);
 
             if (res && res.status === "success") {
                 showAlert("Barang berhasil dihapus!", "success");
@@ -249,8 +244,8 @@
         function filterTable() {
             const query = document.getElementById("searchInput").value.toLowerCase();
             const filtered = allData.filter(item => {
-                const kode = (item.kode_barang || item.kode || '').toLowerCase();
-                const nama = (item.nama_barang || item.nama || '').toLowerCase();
+                const kode = (item.kode || item.kode_barang || '').toLowerCase();
+                const nama = (item.nama || item.nama_barang || '').toLowerCase();
                 return kode.includes(query) || nama.includes(query);
             });
             renderTable(filtered);
@@ -303,7 +298,6 @@
             }, 4000);
         }
 
-        // Load data awal saat halaman siap
         document.addEventListener("DOMContentLoaded", loadDataBarang);
     </script>
 </body>
