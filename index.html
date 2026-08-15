@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Stok Barang - SID Retail</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-100 min-h-screen font-sans">
+
+    <!-- Header / Navbar -->
+    <header class="bg-indigo-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-boxes-stacked"></i> Stok & Data Barang
+            </h1>
+            <button onclick="openModal('add')" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium shadow flex items-center gap-2 transition">
+                <i class="fa-solid fa-plus"></i> Tambah Barang
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+
+        <!-- Bar Pencarian & Info -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="relative w-full md:w-96">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Cari kode atau nama barang..." class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 border-slate-300">
+            </div>
+            <button onclick="loadDataBarang()" class="w-full md:w-auto bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-medium transition border border-slate-300 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-rotate"></i> Refresh Data
+            </button>
+        </div>
+
+        <!-- Notification Alert -->
+        <div id="alertBox" class="hidden mb-6 p-4 rounded-lg text-sm font-medium transition"></div>
+
+        <!-- Tabel Barang -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-sm font-semibold uppercase tracking-wider">
+                            <th class="py-3 px-4">Kode</th>
+                            <th class="py-3 px-4">Nama Barang</th>
+                            <th class="py-3 px-4">Harga Toko</th>
+                            <th class="py-3 px-4 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-100 text-slate-700 text-sm">
+                        <!-- Data dimasukkan secara dinamis melalui JavaScript -->
+                        <tr>
+                            <td colspan="4" class="text-center py-8 text-slate-400">
+                                <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
+                                <p>Memuat data barang...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Form (Tambah / Edit Barang) -->
+    <div id="itemModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                <h3 id="modalTitle" class="font-bold text-slate-800 text-lg">Tambah Barang Baru</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 transition">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="barangForm" onsubmit="saveBarang(event)" class="p-6 space-y-4">
+                <input type="hidden" id="isEdit" value="false">
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Kode Barang</label>
+                    <input type="text" id="kodeBarang" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Nama Barang</label>
+                    <input type="text" id="namaBarang" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Harga Toko</label>
+                    <input type="number" id="hargaToko" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Contoh: 15000">
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-medium transition">
+                        Batal
+                    </button>
+                    <button type="submit" id="btnSubmit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition flex items-center gap-2">
+                        <i class="fa-solid fa-floppy-disk"></i> Simpan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Konfigurasi API SID Retail
+        const API_KEY = "2d8cd73b32a98b101b92772f81d3b0d81";
+        const BASE_URL = `https://sidretail.id/api/${API_KEY}`;
+        
+        let allData = [];
+
+        // Helper untuk memanggil API
+        async function queryApi(sqlQuery) {
+            const trxId = "TRX" + Math.floor(1000 + Math.random() * 9000);
+            const url = `${BASE_URL}/${trxId}/${encodeURIComponent(sqlQuery)}`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error("API Request Failed:", error);
+                return { status: "error", result: "Gagal terhubung ke server API." };
+            }
+        }
+
+        // 1. Ambil & Tampilkan Data Barang (SELECT)
+        async function loadDataBarang() {
+            const tbody = document.getElementById("tableBody");
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center py-8 text-slate-400">
+                        <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
+                        <p>Memuat data barang...</p>
+                    </td>
+                </tr>`;
+
+            const res = await queryApi("select kode_barang,nama_barang,harga_toko from barang");
+
+            if (res.status === "success") {
+                allData = res.data || [];
+                renderTable(allData);
+            } else {
+                showAlert(res.result || "Gagal mengambil data dari database", "error");
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-red-500">Gagal memuat data.</td></tr>`;
+            }
+        }
+
+        // Render data ke tabel
+        function renderTable(data) {
+            const tbody = document.getElementById("tableBody");
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-slate-400">Tidak ada data barang.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = data.map(item => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="py-3 px-4 font-mono text-indigo-600 font-semibold">${item.kode_barang || '-'}</td>
+                    <td class="py-3 px-4 font-medium">${item.nama_barang || '-'}</td>
+                    <td class="py-3 px-4">Rp ${Number(String(item.harga_toko).replace(/[^0-9]/g, '')).toLocaleString('id-ID') || '0'}</td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="flex justify-center gap-2">
+                            <button onclick="openModal('edit', '${item.kode_barang}', '${item.nama_barang}', '${item.harga_toko}')" class="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-md font-medium text-xs transition flex items-center gap-1">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </button>
+                            <button onclick="hapusBarang('${item.kode_barang}')" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-md font-medium text-xs transition flex items-center gap-1">
+                                <i class="fa-solid fa-trash"></i> Hapus
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 2. Simpan Data (INSERT / UPDATE)
+        async function saveBarang(event) {
+            event.preventDefault();
+            
+            const isEdit = document.getElementById("isEdit").value === "true";
+            const kode = document.getElementById("kodeBarang").value.trim();
+            const nama = document.getElementById("namaBarang").value.trim();
+            const harga = document.getElementById("hargaToko").value.trim();
+
+            let sqlQuery = "";
+            if (isEdit) {
+                sqlQuery = `update barang set nama_barang="${nama}", harga_toko="${harga}" where kode_barang="${kode}"`;
+            } else {
+                sqlQuery = `insert into barang (kode_barang, nama_barang, harga_toko) values ("${kode}", "${nama}", "${harga}")`;
+            }
+
+            const res = await queryApi(sqlQuery);
+
+            if (res.status === "success") {
+                showAlert(`Barang berhasil ${isEdit ? 'diperbarui' : 'ditambahkan'}!`, "success");
+                closeModal();
+                loadDataBarang();
+            } else {
+                showAlert(res.result || "Gagal menyimpan data", "error");
+            }
+        }
+
+        // 3. Hapus Data Barang (DELETE)
+        async function hapusBarang(kode) {
+            if (!confirm(`Apakah Anda yakin ingin menghapus barang dengan kode: ${kode}?`)) return;
+
+            const res = await queryApi(`delete from barang where kode_barang="${kode}"`);
+
+            if (res.status === "success") {
+                showAlert("Barang berhasil dihapus!", "success");
+                loadDataBarang();
+            } else {
+                showAlert(res.result || "Gagal menghapus barang", "error");
+            }
+        }
+
+        // Filter tabel lokal
+        function filterTable() {
+            const query = document.getElementById("searchInput").value.toLowerCase();
+            const filtered = allData.filter(item => 
+                (item.kode_barang && item.kode_barang.toLowerCase().includes(query)) ||
+                (item.nama_barang && item.nama_barang.toLowerCase().includes(query))
+            );
+            renderTable(filtered);
+        }
+
+        // Kontrol Modal
+        function openModal(mode, kode = '', nama = '', harga = '') {
+            const modal = document.getElementById("itemModal");
+            const modalTitle = document.getElementById("modalTitle");
+            const kodeInput = document.getElementById("kodeBarang");
+
+            document.getElementById("barangForm").reset();
+            
+            if (mode === 'edit') {
+                modalTitle.innerText = "Edit Data Barang";
+                document.getElementById("isEdit").value = "true";
+                kodeInput.value = kode;
+                kodeInput.readOnly = true; // Kode barang tidak boleh diubah saat edit
+                kodeInput.classList.add("bg-slate-100", "cursor-not-allowed");
+                document.getElementById("namaBarang").value = nama;
+                document.getElementById("hargaToko").value = String(harga).replace(/[^0-9]/g, '');
+            } else {
+                modalTitle.innerText = "Tambah Barang Baru";
+                document.getElementById("isEdit").value = "false";
+                kodeInput.readOnly = false;
+                kodeInput.classList.remove("bg-slate-100", "cursor-not-allowed");
+            }
+
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+        }
+
+        function closeModal() {
+            const modal = document.getElementById("itemModal");
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+        }
+
+        // Tampilkan Notifikasi Alert
+        function showAlert(message, type = "success") {
+            const alertBox = document.getElementById("alertBox");
+            alertBox.innerText = message;
+            alertBox.className = `mb-6 p-4 rounded-lg text-sm font-medium transition ${
+                type === 'success' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-red-100 text-red-800 border border-red-200'
+            }`;
+            alertBox.classList.remove("hidden");
+
+            setTimeout(() => {
+                alertBox.classList.add("hidden");
+            }, 4000);
+        }
+
+        // Load data awal saat halaman siap
+        document.addEventListener("DOMContentLoaded", loadDataBarang);
+    </script>
+</body>
+</html>
